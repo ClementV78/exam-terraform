@@ -1,4 +1,4 @@
-# recupère dynamiquement les zones de disponibilités
+# recupère dynamiquement les zones de disponibilites
 data "aws_availability_zones" "available" {}
 
 /**********************
@@ -8,31 +8,117 @@ module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
   name                             = "${var.namespace}-vpc"
   cidr                             = "10.0.0.0/16"
-  azs                              = data.aws_availability_zones.available.names
-  public_subnets                   = ["10.0.120.0/20", "10.0.32.0/19"]
-  private_subnets                  = ["10.0.0.0/19", "10.0.2.0/24"]
-  #assign_generated_ipv6_cidr_block = true
-  create_database_subnet_group     = true
+  azs                              = [data.aws_availability_zones.available.names[0],data.aws_availability_zones.available.names[1]]
+  public_subnets                   = ["10.0.128.0/20" , "10.0.144.0/20"]
+  private_subnets                  = ["10.0.0.0/19", "10.0.32.0/24"]
+  //create_database_subnet_group     = false
+  enable_dns_hostnames = true
+  enable_dns_support   = true
   enable_nat_gateway               = true
-  single_nat_gateway               = false
+  //single_nat_gateway               = false
   one_nat_gateway_per_az = true
   manage_default_network_acl = true
+  
+  /*manage_default_route_table = true
+  default_route_table_tags   = var.default_route_table_tags
+  manage_default_security_group = true
+  default_security_group_tags   = var.default_security_group_tags*/
+
+  # VPC Flow Logs (Cloudwatch log group and IAM role will be created)
+  enable_flow_log                      = true
+  create_flow_log_cloudwatch_log_group = true
+  create_flow_log_cloudwatch_iam_role  = true
+  flow_log_max_aggregation_interval    = 60
+  # Additional tags
+  private_subnet_tags_per_az = {
+    "${data.aws_availability_zones.available.names[0]}" = {
+      Name : "priv_sub_az1-${data.aws_availability_zones.available.names[0]}"
+    },
+    "${data.aws_availability_zones.available.names[1]}" = {
+      Name : "priv_sub_az2-${data.aws_availability_zones.available.names[1]}"
+    }
+  }
+  public_subnet_tags_per_az = {
+    "${data.aws_availability_zones.available.names[0]}" = {
+      Name : "pub_sub_az1-${data.aws_availability_zones.available.names[0]}"
+    },
+    "${data.aws_availability_zones.available.names[1]}" = {
+      Name : "pub_sub_az1-${data.aws_availability_zones.available.names[1]}"
+    }
+  }
+  #vpc_tags                   = "vpc"
+  default_network_acl_tags   = { Name: "acl"}
+  nat_eip_tags               = { Name: "nat_eip"}
+  nat_gateway_tags           = { Name: "nat_gateway"}
+  private_acl_tags           = { Name: "private_acl"}
+  igw_tags                   = { Name: "igw"}
 
   tags = {
     Terraform = "true"
     Author = "cviot"
-    Environment = "dev"
+    Environment = "${var.environment}"
     Name = "${var.namespace}-vpc"
   }
+
 }
+
+/*
+resource "aws_subnet" "priv_sub_az1" {
+  vpc_id     = module.vpc.vpc_id
+  cidr_block = "10.0.0.0/19"
+  
+  tags = {
+    Terraform = "true"
+    Author = "cviot"
+    Environment = "${var.environment}"
+    Name = "${var.namespace}-priv_sub_az1"
+  }
+}
+
+resource "aws_subnet" "priv_sub_az2" {
+  vpc_id     = module.vpc.vpc_id
+  cidr_block = "10.0.32.0/24"
+  
+  tags = {
+    Terraform = "true"
+    Author = "cviot"
+    Environment = "${var.environment}"
+    Name = "${var.namespace}-priv_sub_az2"
+  }
+}
+
+resource "aws_subnet" "pub_sub_az1" {
+  vpc_id     = module.vpc.vpc_id
+  cidr_block = "10.0.128.0/20"
+  
+  tags = {
+    Terraform = "true"
+    Author = "cviot"
+    Environment = "${var.environment}"
+    Name = "${var.namespace}-pub_sub_az1"
+  }
+}
+
+resource "aws_subnet" "pub_sub_az2" {
+  vpc_id     = module.vpc.vpc_id
+  cidr_block = "10.0.144.0/20"
+  
+  tags = {
+    Terraform = "true"
+    Author = "cviot"
+    Environment = "${var.environment}"
+    Name = "${var.namespace}-pub_sub_az2"
+  }
+}
+*/
 
 /**********************
 *  SG Public Subnet
 ***********************/
 resource "aws_security_group" "sg_pub_sub" {
   name        = "sg_pub_sub"
-  description = "groupe de sécurité pour autoriser le traffic ssh et http(s) vers le subnet public"
-
+  description = "groupe de securite pour autoriser le traffic ssh et http(s) vers le subnet public"
+  vpc_id = module.vpc.vpc_id
   dynamic "ingress" { 
     for_each = var.sg_public_ports_ingress 
     iterator = port 
@@ -45,7 +131,6 @@ resource "aws_security_group" "sg_pub_sub" {
   }
 
   dynamic "egress"  {   
-
     for_each = var.sg_public_ports_ingress
     iterator = egress 
     content {
@@ -59,7 +144,8 @@ resource "aws_security_group" "sg_pub_sub" {
     tags = {
     Terraform = "true"
     Author = "cviot"
-    Environment = "dev"
+    Environment = "${var.environment}"
+    Module = "networking"
     Name = "${var.namespace}-sg_pub_sub"
   }
 }
@@ -70,7 +156,7 @@ resource "aws_security_group" "sg_pub_sub" {
 resource "aws_security_group" "sg_priv_sub" {
   name        = "sg_priv_sub"
   description = "Autoriser le trafic entrant SSH depuis le public sunet"
-
+  vpc_id = module.vpc.vpc_id
   dynamic "ingress" { 
     for_each = var.sg_private_ports_ingress
     iterator = port
@@ -78,7 +164,7 @@ resource "aws_security_group" "sg_priv_sub" {
       from_port   = port.value
       to_port     = port.value
       protocol    = "tcp"
-      cidr_blocks = module.vpc.vpc_cidr_block
+      cidr_blocks = [module.vpc.vpc_cidr_block]
     }
   }
 
@@ -97,8 +183,8 @@ resource "aws_security_group" "sg_priv_sub" {
     tags = {
     Terraform = "true"
     Author = "cviot"
-    Environment = "dev"
+    Environment = "${var.environment}"
+    Module = "networking"
     Name = "${var.namespace}-sg_priv_sub"
   }
 }
-

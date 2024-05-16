@@ -1,6 +1,10 @@
 variable "namespace" {
   type = string
 }
+variable "environment" {
+  type    = string
+  default = "dev"
+}
 variable "sg_public_ports_ingress" {
   type        = list(number)
   description = "list of ingress ports"
