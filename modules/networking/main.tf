@@ -11,11 +11,9 @@ module "vpc" {
   azs                              = [data.aws_availability_zones.available.names[0],data.aws_availability_zones.available.names[1]]
   public_subnets                   = ["10.0.128.0/20" , "10.0.144.0/20"]
   private_subnets                  = ["10.0.0.0/19", "10.0.32.0/24"]
-  //create_database_subnet_group     = false
   enable_dns_hostnames = true
   enable_dns_support   = true
   enable_nat_gateway               = true
-  //single_nat_gateway               = false
   one_nat_gateway_per_az = true
   manage_default_network_acl = true
   
@@ -112,79 +110,3 @@ resource "aws_subnet" "pub_sub_az2" {
 }
 */
 
-/**********************
-*  SG Public Subnet
-***********************/
-resource "aws_security_group" "sg_pub_sub" {
-  name        = "sg_pub_sub"
-  description = "groupe de securite pour autoriser le traffic ssh et http(s) vers le subnet public"
-  vpc_id = module.vpc.vpc_id
-  dynamic "ingress" { 
-    for_each = var.sg_public_ports_ingress 
-    iterator = port 
-    content {
-      from_port   = port.value
-      to_port     = port.value
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-
-  dynamic "egress"  {   
-    for_each = var.sg_public_ports_ingress
-    iterator = egress 
-    content {
-      from_port   = egress.value
-      to_port     = egress.value
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-
-    tags = {
-    Terraform = "true"
-    Author = "cviot"
-    Environment = "${var.environment}"
-    Module = "networking"
-    Name = "${var.namespace}-sg_pub_sub"
-  }
-}
-
-/**********************
-*  SG Private Subnet
-***********************/
-resource "aws_security_group" "sg_priv_sub" {
-  name        = "sg_priv_sub"
-  description = "Autoriser le trafic entrant SSH depuis le public sunet"
-  vpc_id = module.vpc.vpc_id
-  dynamic "ingress" { 
-    for_each = var.sg_private_ports_ingress
-    iterator = port
-    content {
-      from_port   = port.value
-      to_port     = port.value
-      protocol    = "tcp"
-      cidr_blocks = [module.vpc.vpc_cidr_block]
-    }
-  }
-
-  dynamic "egress"  { 
-
-    for_each = var.sg_private_ports_egress
-    iterator = egress # variable temporaire
-    content {
-      from_port   = egress.value
-      to_port     = egress.value
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-
-    tags = {
-    Terraform = "true"
-    Author = "cviot"
-    Environment = "${var.environment}"
-    Module = "networking"
-    Name = "${var.namespace}-sg_priv_sub"
-  }
-}

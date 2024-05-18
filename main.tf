@@ -19,9 +19,9 @@ module "networking" {
 }
 
 module "rds" {
-  source           = "./modules/rds"
-  namespace        = var.namespace
-  environment      = var.environment
+  source      = "./modules/rds"
+  namespace   = var.namespace
+  environment = var.environment
   #sg_rds_id        = module.networking.sg_rds_id
   db_pwd           = var.MYSQL_DB_PWD
   db_user          = var.MYSQL_DB_USER
@@ -32,12 +32,13 @@ module "rds" {
 
 # appel du modules ec2
 module "ec2" {
-  source               = "./modules/ec2"
-  namespace            = var.namespace
-  environment          = var.environment
-  vpc                  = module.networking.vpc
-  sg_pub_id            = module.networking.sg_pub_id
-  sg_priv_id           = module.networking.sg_priv_id
+  source      = "./modules/ec2"
+  namespace   = var.namespace
+  environment = var.environment
+  vpc         = module.networking.vpc
+  sg_rds_id   = module.rds.sg_rds_id
+  //sg_pub_id            = module.networking.sg_pub_id
+  //sg_priv_id           = module.networking.sg_priv_id
   db_pwd               = var.MYSQL_DB_PWD
   db_user              = var.MYSQL_DB_USER
   wordpress_db         = var.wordpress_db

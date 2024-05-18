@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-# INSTALLE AUTOMATIQUEMENT  WORDPRESS ET MARIADB SUR DES AMI LINUX 2
+# INSTALLE AUTOMATIQUEMENT  WORDPRESS ET MYSQL SUR DES AMI LINUX 2
 
 
 # Modifiez ces valeurs et conservez-les
@@ -11,6 +11,9 @@ db_user_password=${db_user_password}
 db_name=${db_name}
 db_RDS=${db_RDS}
 db_rds_instance_name=${db_rds_instance_name}
+# Extraire le hostname et le port
+hostname=$(echo $db_RDS | cut -d':' -f1)
+port=$(echo $db_RDS | cut -d':' -f2)
 
 # installe le serveur LAMP
 sudo yum update -y
@@ -50,13 +53,19 @@ find /var/www -type f -exec chmod 0664 {} \;
 #**********************Installing Wordpress using WP CLI********************************* 
 curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x wp-cli.phar
-mv wp-cli.phar /usr/local/bin/wp
+#php wp-cli.phar --info
+sudo mv wp-cli.phar /usr/local/bin/wp
+wp cli version --allow-root
+wp --info
 wp core download --path=/var/www/html --allow-root
-wp config create --dbname=$db_name --dbuser=$db_username --dbpass=$db_user_password --dbhost=$db_RDS --path=/var/www/html --allow-root --extra-php <<PHP
+cd /var/www/html
+ls -lrt /var/www/html
+echo "connexion a la base mysql"
+wp config create --dbname="$db_name" --dbuser="$db_username" --dbpass="$db_user_password" --dbhost="$db_RDS" --path="/var/www/html" --allow-root --extra-php <<PHP
 define( 'FS_METHOD', 'direct' );
 define('WP_MEMORY_LIMIT', '256M');
 PHP
-
+ls -lrt /var/www/html
 
 
 # Modifie l'autorisation du fichier journal des erreurs pour extraire le mot de passe root initial
@@ -75,10 +84,11 @@ PHP
 
 # Créer une base de données
 #mysql -u $db_username -p"$db_user_password" -e "CREATE DATABASE $db_name;"
+mysql -h $hostname -P $port -u $db_username -p"$db_user_password" -e "CREATE DATABASE IF NOT EXISTS $db_name;"
 
 # Créer un fichier de configuration wordpress et mettre à jour la valeur de la base de données
-cd /var/www/html
-cp wp-config-sample.php wp-config.php
+#cd /var/www/html
+#cp wp-config-sample.php wp-config.php
 
 #sed -i "s/database_name_here/$db_name/g" wp-config.php
 #sed -i "s/username_here/$db_username/g" wp-config.php
@@ -91,12 +101,11 @@ cp wp-config-sample.php wp-config.php
 # Modifie l'autorisation de /var/www/html/
 chown -R ec2-user:apache /var/www/html
 chmod -R 774 /var/www/html
-
+ls -lrt /var/www/html
 #  active les fichiers .htaccess dans la configuration Apache à l'aide de la commande sed
 sed -i '/<Directory "\/var\/www\/html">/,/<\/Directory>/ s/AllowOverride None/AllowOverride all/' /etc/httpd/conf/httpd.conf
 
-# Permet qu'apache et mariadb démarrent et redémarrent automatiquement
+# Permet qu'apache démarre et redémarre automatiquement
 systemctl enable  httpd.service
-#sudo systemctl enable --now mariadb
 systemctl restart httpd.service
-echo WordPress Installed
+echo WordPress Installed ok1
