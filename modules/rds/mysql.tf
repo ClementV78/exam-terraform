@@ -28,7 +28,7 @@ resource "aws_security_group" "sg_rds" {
     Terraform = "true"
     Author = "cviot"
     Environment = "${var.environment}"
-    Module = "networking"
+    Module = "rds"
     Name = "${var.namespace}-sg-rds"
   }
 }
@@ -53,7 +53,7 @@ resource "aws_db_instance" "wordpress_db" {
     Terraform = "true"
     Author = "cviot"
     Environment = "dev"
-    Module = "alb"
+    Module = "rds"
     Name = "${var.namespace}-rds-mysql"
   }
 }

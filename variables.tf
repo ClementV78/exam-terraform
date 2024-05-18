@@ -37,3 +37,23 @@ variable "wordpress_db" {
   default = "wordpress"
 }
 
+variable "key_name" {
+  type    = string
+  default = "cviot_keypair"
+}
+
+variable "public_subnets" {
+  type    = list(string)
+  default = ["10.0.128.0/20", "10.0.144.0/20"]
+}
+
+variable "private_subnets" {
+  type    = list(string)
+  default = ["10.0.0.0/19", "10.0.32.0/24"]
+}
+
+variable "vpc_cidr" {
+  type    = string
+  default = "10.0.0.0/16"
+}
+

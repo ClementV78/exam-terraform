@@ -62,3 +62,7 @@ default     = [-1]
 variable "sg_rds_id" {
   type = string
 }
+
+variable "my_certificate" {
+  type = any
+}
